@@ -33,33 +33,34 @@ done
 # Get the IP address and subnet mask of the active network interface
 ip_info=$(ip -o -f inet addr show | awk '/scope global/ {print $4}')
 
-# Define the network range MANUAL METHOD
-#network="192.168.1.0/24"
-
 # Use ipcalc to get the network range
 network=$(ipcalc -n $ip_info | awk -F= '/Network/ {print $2}')
 
 # Use nmap to scan the network
 nmap -sn $network | awk '/Nmap scan report for/ {print $5}' > $BASE_DIR/ip_addresses.txt
 
+# Create a log file
+log_file=$BASE_DIR/network_scan.log
+echo "Network Scan Log - $(date)" > $log_file
+
 # Loop through each IP address
 while read -r ip; do
-  echo "IP Address: $ip"
+  echo "IP Address: $ip" | tee -a $log_file
 
   # Get the MAC address
   mac=$(arp -n $ip | awk '/ether/ {print $3}')
-  echo "MAC Address: $mac"
+  echo "MAC Address: $mac" | tee -a $log_file
 
   # Get the device type and operating system using nmap
   os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
-  echo "Operating System: $os"
+  echo "Operating System: $os" | tee -a $log_file
 
   # Get hardware specifications using ssh and dmidecode (requires ssh access)
   # Replace 'username' and 'password' with actual SSH credentials
   specs=$(sshpass -p 'password' ssh -o StrictHostKeyChecking=no username@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
-  echo "Hardware Specifications: $specs"
+  echo "Hardware Specifications: $specs" | tee -a $log_file
 
-  echo "-----------------------------------"
+  echo "-----------------------------------" | tee -a $log_file
 
 done < $BASE_DIR/ip_addresses.txt
 
