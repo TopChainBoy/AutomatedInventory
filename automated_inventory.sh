@@ -21,6 +21,12 @@ if [[ "$1" == "-h" || "$1" == "--help" ]]; then
   exit 0
 fi
 
+# Check if script is run as root
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 
+   exit 1
+fi
+
 # Check if required commands are installed
 REQUIRED_COMMANDS=("nmap" "arp" "sshpass" "ssh" "ipcalc")
 for cmd in "${REQUIRED_COMMANDS[@]}"; do
@@ -29,6 +35,10 @@ for cmd in "${REQUIRED_COMMANDS[@]}"; do
     exit 1
   fi
 done
+
+# Get the SSH credentials
+SSH_USERNAME=${SSH_USERNAME:-$(read -p "Enter SSH username: ")}
+SSH_PASSWORD=${SSH_PASSWORD:-$(read -s -p "Enter SSH password: ")}
 
 # Get the IP address and subnet mask of the active network interface
 ip_info=$(ip -o -f inet addr show | awk '/scope global/ {print $4}')
@@ -55,9 +65,8 @@ while read -r ip; do
   os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
   echo "Operating System: $os" | tee -a $log_file
 
-  # Get hardware specifications using ssh and dmidecode (requires ssh access)
-  # Replace 'username' and 'password' with actual SSH credentials
-  specs=$(sshpass -p 'password' ssh -o StrictHostKeyChecking=no username@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
+  # Get hardware specifications using ssh and dmidecode
+  specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
   echo "Hardware Specifications: $specs" | tee -a $log_file
 
   echo "-----------------------------------" | tee -a $log_file
