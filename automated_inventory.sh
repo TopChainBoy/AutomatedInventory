@@ -28,7 +28,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # Check if required commands are installed
-REQUIRED_COMMANDS=("nmap" "arp" "sshpass" "ssh" "ipcalc")
+REQUIRED_COMMANDS=("nmap" "arp" "sshpass" "ssh" "ipcalc" "ping")
 for cmd in "${REQUIRED_COMMANDS[@]}"; do
   if ! command_exists $cmd; then
     echo "The command '$cmd' is not installed. Install it by running 'sudo apt install $cmd'."
@@ -55,22 +55,26 @@ echo "Network Scan Log - $(date)" > $log_file
 
 # Loop through each IP address
 while read -r ip; do
-  echo "IP Address: $ip" | tee -a $log_file
+  # Check if the IP address is reachable
+  if ping -c 1 $ip &> /dev/null; then
+    echo "IP Address: $ip" | tee -a $log_file
 
-  # Get the MAC address
-  mac=$(arp -n $ip | awk '/ether/ {print $3}')
-  echo "MAC Address: $mac" | tee -a $log_file
+    # Get the MAC address
+    mac=$(arp -n $ip | awk '/ether/ {print $3}')
+    echo "MAC Address: $mac" | tee -a $log_file
 
-  # Get the device type and operating system using nmap
-  os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
-  echo "Operating System: $os" | tee -a $log_file
+    # Get the device type and operating system using nmap
+    os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
+    echo "Operating System: $os" | tee -a $log_file
 
-  # Get hardware specifications using ssh and dmidecode
-  specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
-  echo "Hardware Specifications: $specs" | tee -a $log_file
+    # Get hardware specifications using ssh and dmidecode
+    specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
+    echo "Hardware Specifications: $specs" | tee -a $log_file
 
-  echo "-----------------------------------" | tee -a $log_file
-
+    echo "-----------------------------------" | tee -a $log_file
+  else
+    echo "IP Address: $ip is not reachable" | tee -a $log_file
+  fi
 done < $BASE_DIR/ip_addresses.txt
 
 # Remove the temporary file
