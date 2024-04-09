@@ -67,9 +67,14 @@ while read -r ip; do
     os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
     echo "Operating System: $os" | tee -a $log_file
 
-    # Get hardware specifications using ssh and dmidecode
-    specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
-    echo "Hardware Specifications: $specs" | tee -a $log_file
+    # Check if SSH connection is successful
+    if sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $SSH_USERNAME@$ip exit &> /dev/null; then
+      # Get hardware specifications using ssh and dmidecode
+      specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
+      echo "Hardware Specifications: $specs" | tee -a $log_file
+    else
+      echo "SSH connection failed" | tee -a $log_file
+    fi
 
     echo "-----------------------------------" | tee -a $log_file
   else
