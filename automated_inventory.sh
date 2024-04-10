@@ -51,7 +51,12 @@ nmap -sn $network | awk '/Nmap scan report for/ {print $5}' > $BASE_DIR/ip_addre
 
 # Create a log file
 log_file=$BASE_DIR/network_scan.log
+unknown_device_log=$BASE_DIR/unknown_devices.log
 echo "Network Scan Log - $(date)" > $log_file
+echo "Unknown Devices Log - $(date)" > $unknown_device_log
+
+# Known MAC addresses
+known_mac_addresses=$(cat $BASE_DIR/known_mac_addresses.txt)
 
 # Loop through each IP address
 while read -r ip; do
@@ -62,6 +67,11 @@ while read -r ip; do
     # Get the MAC address
     mac=$(arp -n $ip | awk '/ether/ {print $3}')
     echo "MAC Address: $mac" | tee -a $log_file
+
+    # Check if the device is known
+    if ! grep -q "$mac" <<< "$known_mac_addresses"; then
+      echo "Unknown device detected: $mac" | tee -a $unknown_device_log
+    fi
 
     # Get the device type and operating system using nmap
     os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
