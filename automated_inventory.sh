@@ -69,21 +69,23 @@ while read -r ip; do
     echo "MAC Address: $mac" | tee -a $log_file
 
     # Check if the device is known
-    if ! grep -q "$mac" <<< "$known_mac_addresses"; then
-      echo "Unknown device detected: $mac" | tee -a $unknown_device_log
-    fi
+    if grep -q "$mac" <<< "$known_mac_addresses"; then
+      echo "Known device detected: $mac" | tee -a $log_file
 
-    # Get the device type and operating system using nmap
-    os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
-    echo "Operating System: $os" | tee -a $log_file
+      # Get the device type and operating system using nmap
+      os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
+      echo "Operating System: $os" | tee -a $log_file
 
-    # Check if SSH connection is successful
-    if sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $SSH_USERNAME@$ip exit &> /dev/null; then
-      # Get hardware specifications using ssh and dmidecode
-      specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
-      echo "Hardware Specifications: $specs" | tee -a $log_file
+      # Check if SSH connection is successful
+      if sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $SSH_USERNAME@$ip exit &> /dev/null; then
+        # Get hardware specifications using ssh and dmidecode
+        specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
+        echo "Hardware Specifications: $specs" | tee -a $log_file
+      else
+        echo "SSH connection failed" | tee -a $log_file
+      fi
     else
-      echo "SSH connection failed" | tee -a $log_file
+      echo "Unknown device detected: $mac" | tee -a $unknown_device_log
     fi
 
     echo "-----------------------------------" | tee -a $log_file
