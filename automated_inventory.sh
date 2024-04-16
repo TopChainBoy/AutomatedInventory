@@ -28,7 +28,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # Check if required commands are installed
-REQUIRED_COMMANDS=("nmap" "arp" "sshpass" "ssh" "ipcalc" "ping")
+REQUIRED_COMMANDS=("nmap" "arp" "sshpass" "ssh" "ipcalc" "ping" "mail")
 for cmd in "${REQUIRED_COMMANDS[@]}"; do
   if ! command_exists $cmd; then
     echo "The command '$cmd' is not installed. Install it by running 'sudo apt install $cmd'."
@@ -39,6 +39,9 @@ done
 # Get the SSH credentials
 SSH_USERNAME=${SSH_USERNAME:-$(read -p "Enter SSH username: ")}
 SSH_PASSWORD=${SSH_PASSWORD:-$(read -s -p "Enter SSH password: ")}
+
+# Get the email address for notifications
+EMAIL_ADDRESS=${EMAIL_ADDRESS:-$(read -p "Enter email address for notifications: ")}
 
 # Get the IP address and subnet mask of the active network interface
 ip_info=$(ip -o -f inet addr show | awk '/scope global/ {print $4}')
@@ -91,6 +94,7 @@ while read -r ip; do
       fi
     else
       echo "Unknown device detected: $mac" | tee -a $unknown_device_log
+      echo "Unknown device detected: $mac. IP Address: $ip" | mail -s "Unknown Device Detected" $EMAIL_ADDRESS
     fi
 
     echo "-----------------------------------" | tee -a $log_file
