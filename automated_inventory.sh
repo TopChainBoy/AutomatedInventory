@@ -15,6 +15,16 @@ usage() {
   echo "  -h, --help    Show this help message and exit."
 }
 
+# Function to validate email address
+validate_email() {
+  if [[ "$1" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+    return 0
+  else
+    echo "Invalid email address"
+    exit 1
+  fi
+}
+
 # Check if help option is given
 if [[ "$1" == "-h" || "$1" == "--help" ]]; then
   usage
@@ -42,6 +52,9 @@ SSH_PASSWORD=${SSH_PASSWORD:-$(read -s -p "Enter SSH password: ")}
 
 # Get the email address for notifications
 EMAIL_ADDRESS=${EMAIL_ADDRESS:-$(read -p "Enter email address for notifications: ")}
+
+# Validate the email address
+validate_email $EMAIL_ADDRESS
 
 # Get the IP address and subnet mask of the active network interface
 ip_info=$(ip -o -f inet addr show | awk '/scope global/ {print $4}')
