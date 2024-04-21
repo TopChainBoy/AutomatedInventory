@@ -108,6 +108,11 @@ while read -r ip; do
     else
       echo "Unknown device detected: $mac" | tee -a $unknown_device_log
       echo "Unknown device detected: $mac. IP Address: $ip" | mail -s "Unknown Device Detected" $EMAIL_ADDRESS
+      if [ $? -eq 0 ]; then
+        echo "Email sent successfully" | tee -a $log_file
+      else
+        echo "Failed to send email" | tee -a $log_file
+      fi
     fi
 
     echo "-----------------------------------" | tee -a $log_file
