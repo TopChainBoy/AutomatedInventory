@@ -25,6 +25,19 @@ validate_email() {
   fi
 }
 
+# Function to check if the email service is running
+check_email_service() {
+  if systemctl is-active --quiet postfix; then
+    return 0
+  else
+    echo "Email service is not running. Start it by running 'sudo systemctl start postfix'."
+    exit 1
+  fi
+}
+
+# Check if the email service is running
+check_email_service
+
 # Check if help option is given
 if [[ "$1" == "-h" || "$1" == "--help" ]]; then
   usage
