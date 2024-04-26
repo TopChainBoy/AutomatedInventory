@@ -89,16 +89,15 @@ known_mac_addresses=$(cat $BASE_DIR/known_mac_addresses.txt)
 
 # Loop through each IP address
 while read -r ip; do
-  # Check if the IP address is reachable
-  if ping -c 1 $ip &> /dev/null; then
-    echo "IP Address: $ip" | tee -a $log_file
+  # Get the MAC address
+  mac=$(arp -n $ip | awk '/ether/ {print $3}')
 
-    # Get the MAC address
-    mac=$(arp -n $ip | awk '/ether/ {print $3}')
-    echo "MAC Address: $mac" | tee -a $log_file
-
-    # Check if the device is known
-    if grep -q "$mac" <<< "$known_mac_addresses"; then
+  # Check if the device is known before attempting to ping or SSH
+  if grep -q "$mac" <<< "$known_mac_addresses"; then
+    # Check if the IP address is reachable
+    if ping -c 1 $ip &> /dev/null; then
+      echo "IP Address: $ip" | tee -a $log_file
+      echo "MAC Address: $mac" | tee -a $log_file
       echo "Known device detected: $mac" | tee -a $log_file
 
       # Get the device type and operating system using nmap
@@ -119,34 +118,34 @@ while read -r ip; do
         echo "Device is not online. Skipping SSH attempt." | tee -a $log_file
       fi
     else
-      echo "Unknown device detected: $mac" | tee -a $unknown_device_log
-      echo "Unknown device detected: $mac. IP Address: $ip" | mail -s "Unknown Device Detected" $EMAIL_ADDRESS
-      if [ $? -eq 0 ]; then
-        echo "Email sent successfully" | tee -a $log_file
-      else
-        echo "Failed to send email. Retrying..." | tee -a $log_file
-        retry_count=0
-        while [ $retry_count -lt 3 ]; do
-          echo "Unknown device detected: $mac. IP Address: $ip" | mail -s "Unknown Device Detected" $EMAIL_ADDRESS
-          if [ $? -eq 0 ]; then
-            echo "Email sent successfully" | tee -a $log_file
-            break
-          else
-            ((retry_count++))
-            echo "Retry $retry_count failed. Retrying..." | tee -a $log_file
-          fi
-        done
-        if [ $retry_count -eq 3 ]; then
-          echo "Failed to send email after 3 attempts" | tee -a $log_file
+      echo "IP Address: $ip is not reachable" | tee -a $log_file
+    fi
+  else
+    echo "Unknown device detected: $mac" | tee -a $unknown_device_log
+    echo "Unknown device detected: $mac. IP Address: $ip" | mail -s "Unknown Device Detected" $EMAIL_ADDRESS
+    if [ $? -eq 0 ]; then
+      echo "Email sent successfully" | tee -a $log_file
+    else
+      echo "Failed to send email. Retrying..." | tee -a $log_file
+      retry_count=0
+      while [ $retry_count -lt 3 ]; do
+        echo "Unknown device detected: $mac. IP Address: $ip" | mail -s "Unknown Device Detected" $EMAIL_ADDRESS
+        if [ $? -eq 0 ]; then
+          echo "Email sent successfully" | tee -a $log_file
+          break
+        else
+          ((retry_count++))
+          echo "Retry $retry_count failed. Retrying..." | tee -a $log_file
         fi
+      done
+      if [ $retry_count -eq 3 ]; then
+        echo "Failed to send email after 3 attempts" | tee -a $log_file
       fi
     fi
-
-    echo "Last seen online: $(date)" | tee -a $log_file
-    echo "-----------------------------------" | tee -a $log_file
-  else
-    echo "IP Address: $ip is not reachable" | tee -a $log_file
   fi
+
+  echo "Last seen online: $(date)" | tee -a $log_file
+  echo "-----------------------------------" | tee -a $log_file
 done < $BASE_DIR/ip_addresses.txt
 
 # Remove the temporary file
