@@ -86,7 +86,6 @@ echo "Unknown Devices Log - $(date)" > $unknown_device_log
 
 # Known MAC addresses
 known_mac_addresses=$(cat $BASE_DIR/known_mac_addresses.txt)
-
 # Loop through each IP address
 while read -r ip; do
   # Get the MAC address
