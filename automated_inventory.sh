@@ -86,6 +86,10 @@ echo "Unknown Devices Log - $(date)" > $unknown_device_log
 
 # Known MAC addresses
 known_mac_addresses=$(cat $BASE_DIR/known_mac_addresses.txt)
+
+# Known SSH hosts
+known_ssh_hosts=$(cat $BASE_DIR/known_ssh_hosts.txt)
+
 # Loop through each IP address
 while read -r ip; do
   # Get the MAC address
@@ -93,31 +97,36 @@ while read -r ip; do
 
   # Check if the device is known before attempting to ping or SSH
   if grep -q "$mac" <<< "$known_mac_addresses"; then
-    # Check if the IP address is reachable
-    if ping -c 1 $ip &> /dev/null; then
-      echo "IP Address: $ip" | tee -a $log_file
-      echo "MAC Address: $mac" | tee -a $log_file
-      echo "Known device detected: $mac" | tee -a $log_file
-
-      # Get the device type and operating system using nmap
-      os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
-      echo "Operating System: $os" | tee -a $log_file
-
-      # Check if the device is online before attempting SSH
+    # Check if the IP address is in the known SSH hosts before attempting SSH
+    if grep -q "$ip" <<< "$known_ssh_hosts"; then
+      # Check if the IP address is reachable
       if ping -c 1 $ip &> /dev/null; then
-        # Check if SSH connection is successful
-        if sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $SSH_USERNAME@$ip exit &> /dev/null; then
-          # Get hardware specifications using ssh and dmidecode
-          specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
-          echo "Hardware Specifications: $specs" | tee -a $log_file
+        echo "IP Address: $ip" | tee -a $log_file
+        echo "MAC Address: $mac" | tee -a $log_file
+        echo "Known device detected: $mac" | tee -a $log_file
+
+        # Get the device type and operating system using nmap
+        os=$(nmap -O $ip | awk '/Running:/ {print substr($0, index($0, $2))}')
+        echo "Operating System: $os" | tee -a $log_file
+
+        # Check if the device is online before attempting SSH
+        if ping -c 1 $ip &> /dev/null; then
+          # Check if SSH connection is successful
+          if sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $SSH_USERNAME@$ip exit &> /dev/null; then
+            # Get hardware specifications using ssh and dmidecode
+            specs=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$ip 'sudo dmidecode -t system; sudo dmidecode -t processor')
+            echo "Hardware Specifications: $specs" | tee -a $log_file
+          else
+            echo "SSH connection failed" | tee -a $log_file
+          fi
         else
-          echo "SSH connection failed" | tee -a $log_file
+          echo "Device is not online. Skipping SSH attempt." | tee -a $log_file
         fi
       else
-        echo "Device is not online. Skipping SSH attempt." | tee -a $log_file
+        echo "IP Address: $ip is not reachable" | tee -a $log_file
       fi
     else
-      echo "IP Address: $ip is not reachable" | tee -a $log_file
+      echo "IP Address: $ip is not a known SSH host. Skipping SSH attempt." | tee -a $log_file
     fi
   else
     echo "Unknown device detected: $mac" | tee -a $unknown_device_log
